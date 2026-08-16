@@ -94,6 +94,24 @@ if (contactForm && toast) {
         });
     }
 
+    const openEmailFallback = () => {
+        const formData = new FormData(contactForm);
+        const name = (formData.get('name') || '').toString().trim();
+        const email = (formData.get('email') || '').toString().trim();
+        const subject = (formData.get('subject') || 'Portfolio Contact').toString().trim();
+        const message = (formData.get('message') || '').toString().trim();
+
+        const bodyLines = [
+            `Name: ${name || 'Not provided'}`,
+            `Email: ${email || 'Not provided'}`,
+            '',
+            message || 'No message provided.'
+        ];
+
+        const mailtoLink = `mailto:abenezerisrael23@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(bodyLines.join('\n'))}`;
+        window.location.href = mailtoLink;
+    };
+
     contactForm.addEventListener('submit', async function (e) {
         e.preventDefault();
 
@@ -117,11 +135,22 @@ if (contactForm && toast) {
             if (response.ok) {
                 showToast('success', 'Thank you! Your message has been sent successfully. I will get back to you shortly.');
                 contactForm.reset();
-            } else {
-                throw new Error('Unable to send your message right now.');
+                return;
             }
+
+            if (response.status === 403 || response.status === 429) {
+                throw new Error('formsubmit_blocked');
+            }
+
+            throw new Error('Unable to send your message right now.');
         } catch (error) {
-            showToast('error', 'Sorry, your message could not be sent right now. Please email me directly at abenezerisrael23@gmail.com.');
+            if (error && error.message === 'formsubmit_blocked') {
+                showToast('error', 'The form service is temporarily blocked. Your email app is opening so you can send the message directly.');
+                setTimeout(openEmailFallback, 1200);
+            } else {
+                showToast('error', 'Sorry, your message could not be sent right now. Please email me directly at abenezerisrael23@gmail.com.');
+                setTimeout(openEmailFallback, 1200);
+            }
         } finally {
             if (submitButton) {
                 submitButton.disabled = false;
